@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">SignalSonar</string>
+    <string name="app_tagline">Pencari Sinyal Seluler</string>
+    <string name="signal_searching">Mencari Sinyal…</string>
+    <string name="signal_no_service">Tidak Ada Layanan</string>
+    <string name="signal_excellent">Sangat Kuat</string>
+    <string name="signal_good">Bagus / Optimal</string>
+    <string name="signal_poor">Cukup / Lemah</string>
+    <string name="signal_critical">Sangat Buruk / Kritis</string>
+    
+    <string name="peak_signal">Peak Signal</string>
+    <string name="reset_peak">Reset Peak</string>
+    <string name="sonar_sound">Audio Radar</string>
+    <string name="sonar_active">Sonar Aktif</string>
+    <string name="sonar_muted">Sonar Senyap</string>
+    <string name="screen_stay_awake">Layar Tetap Aktif</string>
+    
+    <string name="permission_title">Izin Akses Diperlukan</string>
+    <string name="permission_rationale">SignalSonar memerlukan izin Lokasi dan Status Telepon untuk membaca kekuatan sinyal antena seluler secara real-time dan akurat.</string>
+    <string name="grant_permission">Izinkan Akses</string>
+    <string name="open_settings">Buka Pengaturan</string>
+</resources>

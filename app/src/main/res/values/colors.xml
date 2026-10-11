@@ -1,0 +1,11 @@
+<resources>
+    <color name="primary">#14E8B0</color>
+    <color name="background_dark">#0F1418</color>
+    <color name="surface_dark">#181F26</color>
+    
+    <!-- Signal Quality Indicator Colors -->
+    <color name="signal_excellent">#00E676</color>
+    <color name="signal_good">#40C4FF</color>
+    <color name="signal_poor">#FFB300</color>
+    <color name="signal_critical">#FF5252</color>
+</resources>

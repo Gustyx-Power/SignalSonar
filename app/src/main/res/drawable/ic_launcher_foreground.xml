@@ -1,0 +1,33 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer concentric radar ring -->
+    <path
+        android:strokeColor="#3300E676"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M54,18 A36,36 0 1,1 53.99,18 Z" />
+    <!-- Mid concentric radar ring -->
+    <path
+        android:strokeColor="#6600E676"
+        android:strokeWidth="2.5"
+        android:fillColor="#00000000"
+        android:pathData="M54,30 A24,24 0 1,1 53.99,30 Z" />
+    <!-- Inner concentric radar ring -->
+    <path
+        android:strokeColor="#CC00E676"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:pathData="M54,42 A12,12 0 1,1 53.99,42 Z" />
+    <!-- Center glowing sonar blip -->
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M54,49 A5,5 0 1,1 53.99,49 Z" />
+    <!-- Radar crosshair lines -->
+    <path
+        android:strokeColor="#4400E676"
+        android:strokeWidth="1.5"
+        android:pathData="M18,54 L90,54 M54,18 L54,90" />
+</vector>
