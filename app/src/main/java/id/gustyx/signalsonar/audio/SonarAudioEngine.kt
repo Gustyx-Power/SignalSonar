@@ -9,7 +9,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Low-latency audio playback engine utilizing Android [SoundPool].
- * Provides crisp repeated acoustic sonar pulses without memory leaks or garbage collection stalls.
+ * Configured specifically to output on the MEDIA stream (STREAM_MUSIC / USAGE_MEDIA)
+ * so users can adjust beep volume directly via normal device volume buttons.
  */
 class SonarAudioEngine(private val context: Context) {
 
@@ -23,6 +24,9 @@ class SonarAudioEngine(private val context: Context) {
     private val isFlatLoaded = AtomicBoolean(false)
     private val isMuted = AtomicBoolean(false)
 
+    @Volatile
+    private var inAppVolume: Float = 0.9f
+
     init {
         initializeSoundPool()
     }
@@ -31,9 +35,10 @@ class SonarAudioEngine(private val context: Context) {
     private fun initializeSoundPool() {
         if (soundPool != null) return
 
+        // USAGE_MEDIA & CONTENT_TYPE_MUSIC routes audio directly to Media Volume (STREAM_MUSIC)
         val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
             .build()
 
         soundPool = SoundPool.Builder()
@@ -44,7 +49,7 @@ class SonarAudioEngine(private val context: Context) {
                     if (status == 0) {
                         if (sampleId == pingSoundId) isPingLoaded.set(true)
                         if (sampleId == flatSoundId) isFlatLoaded.set(true)
-                        Log.d(tag, "Sample $sampleId loaded successfully")
+                        Log.d(tag, "Sample $sampleId loaded successfully into MEDIA stream")
                     } else {
                         Log.e(tag, "Failed to load sample $sampleId, status: $status")
                     }
@@ -65,18 +70,25 @@ class SonarAudioEngine(private val context: Context) {
         isMuted.set(muted)
     }
 
+    fun setInAppVolume(volume: Float) {
+        inAppVolume = volume.coerceIn(0.0f, 1.0f)
+    }
+
+    fun getInAppVolume(): Float = inAppVolume
+
     /**
      * Plays the signature sonar radar ping with optional dynamic pitch variation.
      */
-    fun playPing(ratePitch: Float = 1.0f, volume: Float = 0.9f) {
+    fun playPing(ratePitch: Float = 1.0f, baseVolume: Float = 1.0f) {
         if (isMuted.get()) return
         val pool = soundPool ?: return
         if (!isPingLoaded.get() || pingSoundId == 0) return
 
         try {
-            // Pitch clamped between 0.8f and 1.25f for expressive acoustics
+            val finalVolume = (baseVolume * inAppVolume).coerceIn(0.0f, 1.0f)
+            // Pitch clamped between 0.8f and 1.3f for expressive acoustics
             val clampedPitch = ratePitch.coerceIn(0.8f, 1.3f)
-            pool.play(pingSoundId, volume, volume, 1, 0, clampedPitch)
+            pool.play(pingSoundId, finalVolume, finalVolume, 1, 0, clampedPitch)
         } catch (e: Exception) {
             Log.e(tag, "Error playing ping sound", e)
         }
@@ -85,13 +97,14 @@ class SonarAudioEngine(private val context: Context) {
     /**
      * Plays the flat warning tone when cellular signal is critically low or lost.
      */
-    fun playFlat(volume: Float = 0.7f) {
+    fun playFlat(baseVolume: Float = 0.8f) {
         if (isMuted.get()) return
         val pool = soundPool ?: return
         if (!isFlatLoaded.get() || flatSoundId == 0) return
 
         try {
-            pool.play(flatSoundId, volume, volume, 1, 0, 1.0f)
+            val finalVolume = (baseVolume * inAppVolume).coerceIn(0.0f, 1.0f)
+            pool.play(flatSoundId, finalVolume, finalVolume, 1, 0, 1.0f)
         } catch (e: Exception) {
             Log.e(tag, "Error playing flat sound", e)
         }

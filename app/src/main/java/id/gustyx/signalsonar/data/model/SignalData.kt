@@ -1,7 +1,7 @@
 package id.gustyx.signalsonar.data.model
 
 /**
- * Real-time cellular signal snapshot from the primary data SIM.
+ * Comprehensive real-time cellular signal and RF engineering snapshot.
  */
 data class SignalData(
     val dbm: Int? = null,
@@ -12,6 +12,22 @@ data class SignalData(
     val simSlotIndex: Int = 0,
     val subscriptionId: Int = -1,
     val isConnected: Boolean = false,
+
+    // Advanced Radio Frequency (RF) Engineering Metrics
+    val rsrp: Int? = null,              // Reference Signal Received Power (dBm)
+    val rsrq: Int? = null,              // Reference Signal Received Quality (dB)
+    val sinr: Int? = null,              // Signal-to-Interference-plus-Noise Ratio (dB)
+    val cqi: Int? = null,               // Channel Quality Indicator (1..15)
+    val timingAdvance: Int? = null,     // Timing Advance (LTE/NR symbols)
+    val estimatedDistanceMeters: Int? = null, // Distance to BTS estimate in meters
+
+    // Cell Identity & Carrier Frequency
+    val pci: Int? = null,               // Physical Cell Identity
+    val tac: Int? = null,               // Tracking Area Code
+    val ci: Long? = null,               // Cell Identity (CID/eNB)
+    val band: String? = null,           // E.g., "B3 (1800 MHz)", "B1 (2100 MHz)"
+    val earfcn: Int? = null,            // Frequency Channel Number
+
     val timestamp: Long = System.currentTimeMillis()
 ) {
     val quality: SignalQuality
@@ -22,4 +38,13 @@ data class SignalData(
 
     val isSignalValid: Boolean
         get() = dbm != null && dbm in -140..-40
+
+    val formattedSinr: String
+        get() = if (sinr != null) "${if (sinr > 0) "+" else ""}$sinr dB" else "-- dB"
+
+    val formattedRsrq: String
+        get() = if (rsrq != null) "$rsrq dB" else "-- dB"
+
+    val formattedRsrp: String
+        get() = if (rsrp != null) "$rsrp dBm" else formattedDbm
 }

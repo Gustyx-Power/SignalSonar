@@ -15,13 +15,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeMute
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.StayCurrentPortrait
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -36,12 +40,16 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Control Panel hosting toggles for acoustic feedback (sonar beep),
+ * in-app volume slider routed directly to the MEDIA volume stream,
  * keep-screen-on display lock, and real-time interval pulse rate indicators.
  */
 @Composable
 fun SonarControlPanel(
     isAudioEnabled: Boolean,
     onToggleAudio: () -> Unit,
+    volume: Float,
+    onVolumeChange: (Float) -> Unit,
+    onTestPing: () -> Unit,
     isKeepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
     intervalMs: Long,
@@ -51,7 +59,7 @@ fun SonarControlPanel(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
         )
     ) {
         Column(
@@ -95,7 +103,7 @@ fun SonarControlPanel(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = if (isAudioEnabled) "Interval bunyi otomatis mengikuti sinyal" else "Mode hening",
+                            text = if (isAudioEnabled) "Interval detak otomatis mengikuti sinyal" else "Mode hening",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -110,6 +118,82 @@ fun SonarControlPanel(
                         checkedTrackColor = MaterialTheme.colorScheme.primary
                     )
                 )
+            }
+
+            // In-App Volume Slider (Media Stream)
+            if (isAudioEnabled) {
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Volume Beep (Media Stream):",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Text(
+                            text = "${(volume * 100).toInt()}%",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Slider(
+                            value = volume,
+                            onValueChange = onVolumeChange,
+                            valueRange = 0.05f..1.0f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        FilledTonalButton(
+                            onClick = onTestPing,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.GraphicEq,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = "Tes", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Text(
+                        text = "💡 Suara diarahkan ke Media Volume (STREAM_MUSIC). Anda juga dapat menggunakan tombol volume fisik ponsel Anda.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -188,7 +272,7 @@ fun SonarControlPanel(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Interval Ping Sonar",
+                        text = "Interval Ping Radar",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
