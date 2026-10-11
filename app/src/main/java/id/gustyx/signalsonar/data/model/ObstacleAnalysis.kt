@@ -149,58 +149,58 @@ data class ObstacleAnalysis(
             // 3. Generate Contextual Descriptions
             val obstacleDesc = when (severity) {
                 ObstacleSeverity.CLEAR_LOS ->
-                    "Jalur sinyal sangat terbuka (Line-of-Sight). Tidak ada halangan fisik struktural yang meredam gelombang antena."
+                    "Jalur sinyal sangat terbuka (Line-of-Sight). Tidak ada halangan fisik yang meredam penerimaan sinyal di HP."
                 ObstacleSeverity.LIGHT_OBSTACLE ->
-                    "Teredam ringan oleh partisi tipis (kaca jendela, kanopi, atau daun pohon). Gelombang masih menembus dengan stabil."
+                    "Teredam ringan oleh partisi tipis (kaca jendela, kayu, atau kanopi). Penerimaan sinyal di HP tetap stabil."
                 ObstacleSeverity.MODERATE_OBSTACLE ->
-                    "Sinyal mengalami atenuasi oleh tembok bata atau atap bangunan. Menimbulkan pantulan multipath yang memperlemah daya."
+                    "Sinyal mengalami atenuasi oleh tembok bata atau sekat ruangan. Daya sinyal yang diterima HP melemah."
                 ObstacleSeverity.HEAVY_OBSTACLE ->
-                    "Terblokir struktur masif (beton bertulang, dinding tebal ganda, atau kontur tanah). Sinyal mengalami redaman berat."
+                    "Terblokir struktur masif (beton bertulang, dinding ganda, atau kontur gedung). Sinyal di HP teredam kuat."
                 ObstacleSeverity.UNKNOWN ->
-                    "Menunggu pembacaan sensor radio..."
+                    "Menunggu pembacaan sensor radio HP..."
             }
 
             val interferenceDesc = when (interference) {
                 RfInterferenceLevel.CLEAN ->
-                    "Rasio sinyal terhadap derau (SINR) sangat tinggi. Frekuensi bersih dari tabrakan menara tetangga."
+                    "Rasio sinyal terhadap derau (SINR) tinggi. Saluran frekuensi sangat bersih untuk transfer data HP."
                 RfInterferenceLevel.MODERATE ->
-                    "Tingkat noise wajar untuk area hunian padat. Latensi dan throughput tetap dalam batas optimal."
+                    "Tingkat noise wajar untuk lingkungan sekitar. Kecepatan data HP tetap dalam batas optimal."
                 RfInterferenceLevel.HIGH ->
-                    "Terdeteksi interferensi gelombang antarsel atau radiasi elektromagnetik di sekitar perangkat."
+                    "Terdeteksi interferensi gelombang antarsel atau elektromagnetik di sekitar posisi HP."
                 RfInterferenceLevel.CRITICAL ->
-                    "Noise gelombang melebihi kekuatan sinyal data. Rentan terjadi packet loss dan jitter tinggi."
+                    "Derau gelombang tinggi melebihi daya sinyal. HP rentan mengalami latensi tinggi dan paket data hilang."
                 RfInterferenceLevel.UNKNOWN ->
                     "Mengukur kualitas modulasi saluran..."
             }
 
-            // 4. Generate Targeted Recommendations
+            // 4. Generate Targeted Recommendations for Smartphone Users
             val recs = mutableListOf<String>()
             when (severity) {
                 ObstacleSeverity.CLEAR_LOS -> {
-                    recs.add("Posisi saat ini sangat optimal. Kunci posisi antena/modem di titik ini.")
-                    recs.add("Pastikan kabel antena tidak terlipat tajam untuk mempertahankan throughput.")
+                    recs.add("Posisi HP di titik ini sangat optimal untuk internet cepat dan panggilan lancar.")
+                    recs.add("Pertahankan posisi HP di area ini jika sedang mengunduh atau bermain game.")
                 }
                 ObstacleSeverity.LIGHT_OBSTACLE -> {
-                    recs.add("Dekatkan perangkat ke jendela kaca yang menghadap ke luar bangunan.")
-                    recs.add("Arahkan sisi depan modem menghadap ke ruang terbuka tanpa terhalang lemari.")
+                    recs.add("Bawa HP sedikit lebih dekat ke jendela atau pintu yang menghadap area luar.")
+                    recs.add("Pegang HP secara wajar agar antena internal tidak tertutup telapak tangan.")
                 }
                 ObstacleSeverity.MODERATE_OBSTACLE -> {
-                    recs.add("Tinggikan antena minimal 1–2 meter untuk melompati pembatas atap bangunan tetangga.")
-                    recs.add("Hindari menaruh modem di balik tembok bata tebal atau sudut mati ruangan.")
+                    recs.add("Pindahkan posisi HP ke dekat bukaan ruangan atau balkon untuk menghindari redaman tembok.")
+                    recs.add("Coba berpindah ke lantai atas atau ruangan dengan jendela terbuka.")
                 }
                 ObstacleSeverity.HEAVY_OBSTACLE -> {
-                    recs.add("Pindahkan perangkat ke luar ruangan atau gunakan antena eksternal outdoor (Yagi / Grid / LPDA).")
-                    recs.add("Pasang antena setinggi mungkin di atas bubungan atap rumah.")
+                    recs.add("Bawa HP ke area luar ruangan (outdoor) atau mendekat ke jendela utama.")
+                    recs.add("Hindari menggunakan HP di sudut ruangan beton tebal atau basement tertutup.")
                 }
                 ObstacleSeverity.UNKNOWN -> {}
             }
 
             if (interference == RfInterferenceLevel.HIGH || interference == RfInterferenceLevel.CRITICAL) {
-                recs.add("Jauhkan perangkat dari sumber noise RF: router Wi-Fi 2.4GHz lain, microwave, atau charger laptop non-orisinal.")
+                recs.add("Jauhkan HP dari sumber radiasi listrik seperti microwave, adaptor daya besar, atau motor listrik.")
             }
 
             if (distanceMeters != null && distanceMeters > 1500) {
-                recs.add("Estimasi jarak ke BTS sekitar ${distanceMeters}m; gunakan antena directional terarah.")
+                recs.add("Estimasi jarak HP ke BTS sekitar ${distanceMeters}m; posisikan HP menghadap area terbuka.")
             }
 
             return ObstacleAnalysis(

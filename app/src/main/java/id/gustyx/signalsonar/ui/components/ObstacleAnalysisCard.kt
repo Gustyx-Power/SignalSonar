@@ -3,13 +3,10 @@ package id.gustyx.signalsonar.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,20 +15,23 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Domain
+import androidx.compose.material.icons.rounded.CheckCircleOutline
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Lightbulb
-import androidx.compose.material.icons.rounded.NearMe
+import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Waves
-import androidx.compose.material3.Card
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,18 +41,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import id.gustyx.signalsonar.data.model.ObstacleAnalysis
 import id.gustyx.signalsonar.data.model.ObstacleSeverity
-import id.gustyx.signalsonar.data.model.RfInterferenceLevel
 
 /**
- * Diagnostic Card presenting physical obstacle penetration loss analysis,
- * RF interference levels, and targeted antenna orientation recommendations.
+ * Material 3 Environmental & Propagation Diagnostic Card.
+ * Analyzes cellular line-of-sight obstacles, estimated attenuation,
+ * RF interference levels, and practical tips for positioning the smartphone.
  */
 @Composable
 fun ObstacleAnalysisCard(
@@ -61,88 +59,89 @@ fun ObstacleAnalysisCard(
 ) {
     var isTipsExpanded by remember { mutableStateOf(true) }
 
-    Card(
+    ElevatedCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-        )
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp)
+                .padding(20.dp)
         ) {
-            // Header Row: Card Title & Penetration Loss Badge
+            // Header Row: Card Title & Redaman Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(obstacleAnalysis.obstacleSeverity.color.copy(alpha = 0.16f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Domain,
-                            contentDescription = null,
-                            tint = obstacleAnalysis.obstacleSeverity.color,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
+                    Icon(
+                        imageVector = Icons.Rounded.Sensors,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
                     Spacer(modifier = Modifier.width(10.dp))
-
                     Column {
                         Text(
-                            text = "ANALISIS HALANG RINTANG",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp,
+                            text = "Kondisi Lingkungan & Redaman",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Penetrasi RF & Estimasi Redaman",
+                            text = "Analisis propagasi sinyal pada posisi HP",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                // Loss badge
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(obstacleAnalysis.obstacleSeverity.color.copy(alpha = 0.15f))
-                        .border(
-                            width = 1.dp,
-                            color = obstacleAnalysis.obstacleSeverity.color.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(10.dp)
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            text = "-${obstacleAnalysis.estimatedLossDb} dB Loss",
+                            fontWeight = FontWeight.Bold
                         )
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "-${obstacleAnalysis.estimatedLossDb} dB Loss",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        color = obstacleAnalysis.obstacleSeverity.color
-                    )
-                }
+                    },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = obstacleAnalysis.obstacleSeverity.color.copy(alpha = 0.15f),
+                        labelColor = obstacleAnalysis.obstacleSeverity.color
+                    ),
+                    border = null
+                )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Obstacle Status Segmented Gauge
-            ObstacleSeveritySegmentedBar(currentSeverity = obstacleAnalysis.obstacleSeverity)
+            // Obstacle Progress Indicator (Clean Material 3 Progress Bar)
+            val obstacleProgress = when (obstacleAnalysis.obstacleSeverity) {
+                ObstacleSeverity.CLEAR_LOS -> 0.2f
+                ObstacleSeverity.LIGHT_OBSTACLE -> 0.45f
+                ObstacleSeverity.MODERATE_OBSTACLE -> 0.75f
+                ObstacleSeverity.HEAVY_OBSTACLE -> 1.0f
+                ObstacleSeverity.UNKNOWN -> 0.05f
+            }
+
+            LinearProgressIndicator(
+                progress = { obstacleProgress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = obstacleAnalysis.obstacleSeverity.color,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                strokeCap = StrokeCap.Round
+            )
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Obstacle Status Text
+            // Severity Status & Distance
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -150,28 +149,17 @@ fun ObstacleAnalysisCard(
             ) {
                 Text(
                     text = obstacleAnalysis.obstacleSeverity.label,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = obstacleAnalysis.obstacleSeverity.color
                 )
 
                 if (obstacleAnalysis.distanceEstimateMeters != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.NearMe,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = "BTS ~${obstacleAnalysis.distanceEstimateMeters}m",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "Jarak BTS: ~${obstacleAnalysis.distanceEstimateMeters}m",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
@@ -180,15 +168,14 @@ fun ObstacleAnalysisCard(
             Text(
                 text = obstacleAnalysis.obstacleDescription,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 20.sp
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(14.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(14.dp))
 
-            // RF Interference Section
+            // RF Interference Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -203,27 +190,27 @@ fun ObstacleAnalysisCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Interferensi Gelombang:",
+                        text = "Kualitas Frekuensi Radio:",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(obstacleAnalysis.interferenceLevel.color.copy(alpha = 0.16f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = obstacleAnalysis.interferenceLevel.shortBadge,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        color = obstacleAnalysis.interferenceLevel.color
-                    )
-                }
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            text = obstacleAnalysis.interferenceLevel.shortBadge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = obstacleAnalysis.interferenceLevel.color.copy(alpha = 0.15f),
+                        labelColor = obstacleAnalysis.interferenceLevel.color
+                    ),
+                    border = null
+                )
             }
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -234,114 +221,81 @@ fun ObstacleAnalysisCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Smart Recommendations Dropdown
+            // Smartphone Tips Dropdown (Material 3 Surface)
             if (obstacleAnalysis.recommendations.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.6f))
-                        .clickable { isTipsExpanded = !isTipsExpanded }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.Lightbulb,
-                            contentDescription = null,
-                            tint = Color(0xFFFFD54F),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Rekomendasi Posisi Antena (${obstacleAnalysis.recommendations.size})",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Icon(
-                        imageVector = if (isTipsExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = isTipsExpanded,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
+                Surface(
+                    onClick = { isTipsExpanded = !isTipsExpanded },
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(14.dp)
                     ) {
-                        for (tip in obstacleAnalysis.recommendations) {
-                            Row(
-                                verticalAlignment = Alignment.Top,
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(top = 6.dp)
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(obstacleAnalysis.obstacleSeverity.color)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Lightbulb,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = tip,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    lineHeight = 18.sp
+                                    text = "Tips Posisi HP (${obstacleAnalysis.recommendations.size})",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
+                            }
+
+                            Icon(
+                                imageVector = if (isTipsExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                                contentDescription = if (isTipsExpanded) "Tutup tips" else "Buka tips",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        AnimatedVisibility(
+                            visible = isTipsExpanded,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(top = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                obstacleAnalysis.recommendations.forEach { tip ->
+                                    Row(verticalAlignment = Alignment.Top) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.CheckCircleOutline,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .padding(top = 2.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = tip,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun ObstacleSeveritySegmentedBar(
-    currentSeverity: ObstacleSeverity,
-    modifier: Modifier = Modifier
-) {
-    val segments = listOf(
-        ObstacleSeverity.CLEAR_LOS,
-        ObstacleSeverity.LIGHT_OBSTACLE,
-        ObstacleSeverity.MODERATE_OBSTACLE,
-        ObstacleSeverity.HEAVY_OBSTACLE
-    )
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        val currentIndex = segments.indexOf(currentSeverity)
-
-        for ((index, segment) in segments.withIndex()) {
-            val isActive = index <= currentIndex && currentIndex != -1
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(
-                        if (isActive) segment.color
-                        else Color.Gray.copy(alpha = 0.2f)
-                    )
-            )
         }
     }
 }

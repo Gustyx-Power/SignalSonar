@@ -15,8 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CellTower
 import androidx.compose.material.icons.rounded.SimCard
-import androidx.compose.material3.Card
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,14 +26,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import id.gustyx.signalsonar.data.model.SignalData
 
 /**
- * Expressive Material 3 Card detailing the current cellular network connection,
+ * Material 3 Card detailing the current cellular network connection,
  * operator name, SIM slot information, and signal bars.
  */
 @Composable
@@ -40,17 +39,18 @@ fun SignalStatsCard(
     signalData: SignalData,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    ElevatedCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
-        )
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp)
+                .padding(20.dp)
         ) {
             // Header Row: Network Type Badge & Signal Bars
             Row(
@@ -58,20 +58,16 @@ fun SignalStatsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Network Badge Pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = signalData.networkType.displayName,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            text = signalData.networkType.displayName,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    border = null
+                )
 
                 // 4-Bar Signal Indicator
                 SignalBars(
@@ -90,13 +86,13 @@ fun SignalStatsCard(
                     imageVector = Icons.Rounded.CellTower,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = signalData.operatorName,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -126,8 +122,7 @@ fun SignalStatsCard(
 
                 Text(
                     text = if (signalData.asu != null) "ASU: ${signalData.asu}" else "ASU: --",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -143,7 +138,7 @@ private fun SignalBars(
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.Bottom
     ) {
         val barHeights = listOf(7.dp, 12.dp, 17.dp, 22.dp)
@@ -154,7 +149,10 @@ private fun SignalBars(
                     .width(5.dp)
                     .height(barHeights[i])
                     .clip(RoundedCornerShape(2.dp))
-                    .background(if (isActive) tintColor else Color.Gray.copy(alpha = 0.25f))
+                    .background(
+                        if (isActive) tintColor
+                        else MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
             )
         }
     }

@@ -4,13 +4,10 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -23,8 +20,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -40,9 +35,9 @@ import id.gustyx.signalsonar.ui.components.TrafficMonitorCard
 import id.gustyx.signalsonar.ui.viewmodel.MainViewModel
 
 /**
- * Primary Screen orchestrating the Tactical Radar Visualizer,
- * physical obstacle analysis, RF engineering telemetry, real-time throughput traffic,
- * and Media stream sonar controls.
+ * Main Screen built entirely with Material 3 (Material You) components.
+ * Assembles the TopAppBar, Hero Signal Visualizer, environmental obstacle analysis,
+ * RF telemetry, real-time traffic speeds, and sonar audio controls.
  */
 @Composable
 fun MainScreen(
@@ -102,82 +97,61 @@ fun MainScreen(
         } else {
             val scrollState = rememberScrollState()
 
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Subtle ambient radial glow matching active signal quality
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(350.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    uiState.currentSignal.quality.color.copy(alpha = 0.09f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
+                // 1. Hero Material 3 Signal Visualizer
+                RadarVisualizer(
+                    signalData = uiState.currentSignal,
+                    pulseTriggerEpoch = uiState.pulseTriggerEpoch,
+                    intervalMs = uiState.currentIntervalMs
                 )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(horizontal = 18.dp, vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // 1. Hero Tactical Radar Visualizer
-                    RadarVisualizer(
-                        signalData = uiState.currentSignal,
-                        pulseTriggerEpoch = uiState.pulseTriggerEpoch,
-                        intervalMs = uiState.currentIntervalMs,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
+                // 2. Environmental & Obstacle Propagation Analysis Card
+                ObstacleAnalysisCard(
+                    obstacleAnalysis = uiState.obstacleAnalysis
+                )
 
-                    // 2. Obstacle & RF Interference Diagnostic Card
-                    ObstacleAnalysisCard(
-                        obstacleAnalysis = uiState.obstacleAnalysis
-                    )
+                // 3. RF Engineering Telemetry (RSRP, RSRQ, SINR, TA, Cell ID)
+                RfMetricsCard(
+                    signalData = uiState.currentSignal
+                )
 
-                    // 3. Advanced RF Engineering Telemetry (RSRP, RSRQ, SINR, TA, Cell ID)
-                    RfMetricsCard(
-                        signalData = uiState.currentSignal
-                    )
+                // 4. Real-time Network Throughput Traffic (Rx/Tx)
+                TrafficMonitorCard(
+                    trafficData = uiState.trafficData
+                )
 
-                    // 4. Real-time Network Throughput Traffic (Rx/Tx)
-                    TrafficMonitorCard(
-                        trafficData = uiState.trafficData
-                    )
+                // 5. Operator, SIM Slot, and Signal Bars Card
+                SignalStatsCard(
+                    signalData = uiState.currentSignal
+                )
 
-                    // 5. Operator, SIM Slot, and Signal Bars Card
-                    SignalStatsCard(
-                        signalData = uiState.currentSignal
-                    )
+                // 6. Peak Signal Hold Card
+                PeakSignalCard(
+                    peakSignal = uiState.peakSignal,
+                    onResetPeak = { viewModel.resetPeakSignal() }
+                )
 
-                    // 6. Peak Signal Hold Card
-                    PeakSignalCard(
-                        peakSignal = uiState.peakSignal,
-                        onResetPeak = { viewModel.resetPeakSignal() }
-                    )
+                // 7. Sonar Control Panel (Media Volume, Sound Toggle, Keep Screen On)
+                SonarControlPanel(
+                    isAudioEnabled = uiState.isSonarAudioEnabled,
+                    onToggleAudio = { viewModel.toggleSonarAudio() },
+                    volume = uiState.inAppVolume,
+                    onVolumeChange = { viewModel.setInAppVolume(it) },
+                    onTestPing = { viewModel.testSonarPing() },
+                    isKeepScreenOn = uiState.isKeepScreenOnEnabled,
+                    onToggleKeepScreenOn = { viewModel.toggleKeepScreenOn() },
+                    intervalMs = uiState.currentIntervalMs
+                )
 
-                    // 7. Sonar Control Panel (Media Volume, Sound Toggle, Keep Screen On)
-                    SonarControlPanel(
-                        isAudioEnabled = uiState.isSonarAudioEnabled,
-                        onToggleAudio = { viewModel.toggleSonarAudio() },
-                        volume = uiState.inAppVolume,
-                        onVolumeChange = { viewModel.setInAppVolume(it) },
-                        onTestPing = { viewModel.testSonarPing() },
-                        isKeepScreenOn = uiState.isKeepScreenOnEnabled,
-                        onToggleKeepScreenOn = { viewModel.toggleKeepScreenOn() },
-                        intervalMs = uiState.currentIntervalMs
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }

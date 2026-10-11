@@ -30,6 +30,8 @@ data class SignalData(
 
     val timestamp: Long = System.currentTimeMillis()
 ) {
+    val cid: Long?
+        get() = ci
     val quality: SignalQuality
         get() = SignalQuality.fromDbm(dbm)
 
