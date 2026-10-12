@@ -19,9 +19,11 @@ class SonarAudioEngine(private val context: Context) {
     private var soundPool: SoundPool? = null
     private var pingSoundId: Int = 0
     private var flatSoundId: Int = 0
+    private var btsBeaconSoundId: Int = 0
 
     private val isPingLoaded = AtomicBoolean(false)
     private val isFlatLoaded = AtomicBoolean(false)
+    private val isBtsBeaconLoaded = AtomicBoolean(false)
     private val isMuted = AtomicBoolean(false)
 
     @Volatile
@@ -42,13 +44,14 @@ class SonarAudioEngine(private val context: Context) {
             .build()
 
         soundPool = SoundPool.Builder()
-            .setMaxStreams(3)
+            .setMaxStreams(4)
             .setAudioAttributes(audioAttributes)
             .build().apply {
                 setOnLoadCompleteListener { _, sampleId, status ->
                     if (status == 0) {
                         if (sampleId == pingSoundId) isPingLoaded.set(true)
                         if (sampleId == flatSoundId) isFlatLoaded.set(true)
+                        if (sampleId == btsBeaconSoundId) isBtsBeaconLoaded.set(true)
                         Log.d(tag, "Sample $sampleId loaded successfully into MEDIA stream")
                     } else {
                         Log.e(tag, "Failed to load sample $sampleId, status: $status")
@@ -60,6 +63,7 @@ class SonarAudioEngine(private val context: Context) {
             soundPool?.let { pool ->
                 pingSoundId = pool.load(context, R.raw.sonar_beep, 1)
                 flatSoundId = pool.load(context, R.raw.sonar_flat, 1)
+                btsBeaconSoundId = pool.load(context, R.raw.bts_beacon, 1)
             }
         } catch (e: Exception) {
             Log.e(tag, "Error loading sound samples", e)
@@ -91,6 +95,24 @@ class SonarAudioEngine(private val context: Context) {
             pool.play(pingSoundId, finalVolume, finalVolume, 1, 0, clampedPitch)
         } catch (e: Exception) {
             Log.e(tag, "Error playing ping sound", e)
+        }
+    }
+
+    /**
+     * Plays the distinct BTS cell tower telemetry beacon sound.
+     * Uses a resonant microwave telemetry chirp, distinct from the medical ECG pulse.
+     */
+    fun playBtsBeacon(ratePitch: Float = 1.0f, baseVolume: Float = 1.0f) {
+        if (isMuted.get()) return
+        val pool = soundPool ?: return
+        if (!isBtsBeaconLoaded.get() || btsBeaconSoundId == 0) return
+
+        try {
+            val finalVolume = (baseVolume * inAppVolume).coerceIn(0.0f, 1.0f)
+            val clampedPitch = ratePitch.coerceIn(0.75f, 1.4f)
+            pool.play(btsBeaconSoundId, finalVolume, finalVolume, 1, 0, clampedPitch)
+        } catch (e: Exception) {
+            Log.e(tag, "Error playing BTS beacon sound", e)
         }
     }
 
@@ -135,6 +157,7 @@ class SonarAudioEngine(private val context: Context) {
             soundPool = null
             isPingLoaded.set(false)
             isFlatLoaded.set(false)
+            isBtsBeaconLoaded.set(false)
             Log.d(tag, "SoundPool released successfully")
         } catch (e: Exception) {
             Log.e(tag, "Error releasing SoundPool", e)

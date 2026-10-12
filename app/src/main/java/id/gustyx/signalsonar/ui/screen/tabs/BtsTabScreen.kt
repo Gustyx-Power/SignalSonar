@@ -24,7 +24,8 @@ import id.gustyx.signalsonar.ui.viewmodel.MainUiState
 @Composable
 fun BtsTabScreen(
     uiState: MainUiState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onTestBeacon: (() -> Unit)? = null
 ) {
     val scrollState = rememberScrollState()
     val towerInfo = uiState.cellTowerInfo
@@ -39,7 +40,8 @@ fun BtsTabScreen(
     ) {
         // 1. BTS Coverage Radius & Distance Visualizer
         BtsCoverageCard(
-            cellTowerInfo = towerInfo
+            cellTowerInfo = towerInfo,
+            onTestBeacon = onTestBeacon
         )
 
         // 2. BTS Identity (eNodeB ID, Sector ID, PCI, TAC, Band)

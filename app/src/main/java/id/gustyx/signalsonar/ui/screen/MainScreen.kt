@@ -117,7 +117,8 @@ fun MainScreen(
                             viewModel = viewModel
                         )
                         AppTab.BTS -> BtsTabScreen(
-                            uiState = uiState
+                            uiState = uiState,
+                            onTestBeacon = { viewModel.testSonarPing() }
                         )
                         AppTab.DIAGNOSTICS -> DiagnosticsTabScreen(
                             uiState = uiState,

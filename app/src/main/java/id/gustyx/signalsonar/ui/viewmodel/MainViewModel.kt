@@ -161,7 +161,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             while (isActive) {
                 val state = _uiState.value
                 val isTracking = state.isActivelyTracking && state.isAppForegrounded
-                val interval = state.currentIntervalMs
+                val interval = if (state.selectedTab == id.gustyx.signalsonar.ui.navigation.AppTab.BTS) {
+                    // BTS Tab interval: rhythm derived from cell coverage distance (450ms near tower, up to 1400ms far)
+                    val fraction = state.cellTowerInfo.coveragePercentage.coerceIn(0f, 1f)
+                    (450L + (fraction * 950L)).toLong()
+                } else {
+                    state.currentIntervalMs
+                }
 
                 if (isTracking && state.isSonarAudioEnabled) {
                     val useFlat = SignalIntervalMapper.shouldUseFlatToneFromScore(
@@ -171,11 +177,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (useFlat) {
                         audioEngine.playFlat()
                     } else {
-                        val ratePitch = SignalIntervalMapper.calculatePitchRateFromScore(
-                            compositeScore = state.currentSignal.compositeScore,
-                            fallbackDbm = state.currentSignal.dbm
-                        )
-                        audioEngine.playPing(ratePitch)
+                        if (state.selectedTab == id.gustyx.signalsonar.ui.navigation.AppTab.BTS) {
+                            // BTS Tab: Play the resonant cellular telemetry beacon
+                            // Closer to BTS -> higher pitch, crisper beacon
+                            val fraction = state.cellTowerInfo.coveragePercentage.coerceIn(0f, 1f)
+                            val btsPitch = (1.25f - (fraction * 0.40f)).coerceIn(0.85f, 1.25f)
+                            audioEngine.playBtsBeacon(ratePitch = btsPitch)
+                        } else {
+                            // Sonar Tab: Medical ECG Heart Monitor Beep
+                            val ratePitch = SignalIntervalMapper.calculatePitchRateFromScore(
+                                compositeScore = state.currentSignal.compositeScore,
+                                fallbackDbm = state.currentSignal.dbm
+                            )
+                            audioEngine.playPing(ratePitch)
+                        }
                     }
 
                     _uiState.update { it.copy(pulseTriggerEpoch = System.currentTimeMillis()) }
@@ -215,7 +230,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun testSonarPing() {
-        audioEngine.playPing(ratePitch = 1.0f)
+        if (_uiState.value.selectedTab == id.gustyx.signalsonar.ui.navigation.AppTab.BTS) {
+            audioEngine.playBtsBeacon(ratePitch = 1.0f)
+        } else {
+            audioEngine.playPing(ratePitch = 1.0f)
+        }
     }
 
     fun toggleKeepScreenOn() {
