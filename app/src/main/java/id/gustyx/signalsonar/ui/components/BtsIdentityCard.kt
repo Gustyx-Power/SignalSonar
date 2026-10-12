@@ -159,6 +159,53 @@ fun BtsIdentityCard(
                 )
             }
 
+            // Mode Duplex & Lebar Kanal Bandwidth
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Mode Duplex & Bandwidth:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "${cellTowerInfo.duplexMode} • ${if (cellTowerInfo.bandwidthMhz != null) "${cellTowerInfo.bandwidthMhz} MHz" else "Auto Bandwidth"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Frekuensi Pembawa Downlink & Uplink
+            if (cellTowerInfo.downlinkMhz != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Frekuensi Pembawa:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = buildString {
+                            append("DL: ${String.format(java.util.Locale.US, "%.1f", cellTowerInfo.downlinkMhz)} MHz")
+                            if (cellTowerInfo.uplinkMhz != null) {
+                                append(" • UL: ${String.format(java.util.Locale.US, "%.1f", cellTowerInfo.uplinkMhz)} MHz")
+                            }
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
             if (cellTowerInfo.earfcn != null) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(

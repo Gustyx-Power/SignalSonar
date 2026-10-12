@@ -57,4 +57,30 @@ class CellTowerInfoTest {
         val neighbor = NeighborCell(pci = 142, dbm = -95, networkType = "LTE")
         assertEquals("-95 dBm", neighbor.formattedDbm)
     }
+
+    @Test
+    fun testLatencyRatingEvaluation() {
+        val (ratingFast, _) = id.gustyx.signalsonar.data.model.LatencyResult.evaluateRating(25, 0)
+        assertEquals("Sangat Cepat & Responsif", ratingFast)
+
+        val (ratingGood, _) = id.gustyx.signalsonar.data.model.LatencyResult.evaluateRating(50, 0)
+        assertEquals("Bagus & Stabil", ratingGood)
+
+        val (ratingLoss, _) = id.gustyx.signalsonar.data.model.LatencyResult.evaluateRating(40, 25)
+        assertEquals("Koneksi Buruk (Banyak Loss)", ratingLoss)
+    }
+
+    @Test
+    fun testSimCardInfoModel() {
+        val sim = id.gustyx.signalsonar.data.model.SimCardInfo(
+            subscriptionId = 1,
+            slotIndex = 0,
+            displayName = "Telkomsel",
+            carrierName = "Telkomsel",
+            isDefaultData = true,
+            countryIso = "ID"
+        )
+        assertEquals("SIM 1: Telkomsel", sim.shortLabel)
+        assertTrue(sim.isDefaultData)
+    }
 }

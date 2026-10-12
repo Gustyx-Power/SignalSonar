@@ -8,8 +8,11 @@ import id.gustyx.signalsonar.audio.SonarAudioEngine
 import id.gustyx.signalsonar.data.model.ObstacleAnalysis
 import id.gustyx.signalsonar.data.model.PeakSignal
 import id.gustyx.signalsonar.data.model.SignalData
+import id.gustyx.signalsonar.network.LatencyTester
+import id.gustyx.signalsonar.network.NetworkUtils
 import id.gustyx.signalsonar.telephony.SignalMonitor
 import id.gustyx.signalsonar.telephony.TrafficMonitor
+import id.gustyx.signalsonar.ui.navigation.AppTab
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,13 +24,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * ViewModel governing cellular monitoring, acoustic sonar timers, peak hold,
- * live traffic throughput, obstacle penetration loss analysis, and Media stream audio.
+ * Main ViewModel managing real-time cellular signal collection, Dual SIM switching,
+ * acoustic sonar loops, latency testing, rolling signal history, and traffic telemetry.
  */
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val signalMonitor = SignalMonitor(application)
     private val trafficMonitor = TrafficMonitor()
+    private val latencyTester = LatencyTester()
     val audioEngine = SonarAudioEngine(application)
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -45,6 +49,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updatePermissions(granted: Boolean) {
         _uiState.update { it.copy(hasRequiredPermissions = granted) }
         if (granted) {
+            refreshSimCardsAndIp()
             startSignalMonitoring()
             startTrafficMonitoring()
             startSonarLoop()
@@ -55,10 +60,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun refreshSimCardsAndIp() {
+        val sims = signalMonitor.getActiveSimCards()
+        val (ipv4, ipv6) = NetworkUtils.getCellularIpAddresses()
+        _uiState.update { current ->
+            current.copy(
+                availableSims = sims,
+                cellularIpv4 = ipv4,
+                cellularIpv6 = ipv6
+            )
+        }
+    }
+
+    fun switchSim(subId: Int) {
+        if (_uiState.value.selectedSubId == subId) return
+        _uiState.update { it.copy(selectedSubId = subId, signalHistory = emptyList()) }
+        startSignalMonitoring()
+    }
+
     private fun startSignalMonitoring() {
         signalCollectorJob?.cancel()
+        val targetSubId = _uiState.value.selectedSubId
         signalCollectorJob = viewModelScope.launch {
-            signalMonitor.observeSignal()
+            signalMonitor.observeSignal(targetSubId)
                 .catch { emit(SignalData()) }
                 .collect { signal ->
                     handleNewSignalData(signal)
@@ -111,11 +135,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 currentPeak
             }
 
+            // Append to rolling signal history (last 30 measurements)
+            val updatedHistory = if (signal.dbm != null && signal.dbm in -140..-40) {
+                (current.signalHistory + signal.dbm).takeLast(30)
+            } else {
+                current.signalHistory
+            }
+
             current.copy(
                 currentSignal = signal,
                 peakSignal = newPeak,
                 obstacleAnalysis = obstacle,
-                currentIntervalMs = interval
+                currentIntervalMs = interval,
+                signalHistory = updatedHistory
             )
         }
     }
@@ -125,30 +157,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         sonarLoopJob = viewModelScope.launch {
             while (isActive) {
                 val state = _uiState.value
+                val isTracking = state.isActivelyTracking && state.isAppForegrounded
+                val interval = state.currentIntervalMs
 
-                if (state.isAppForegrounded && state.hasRequiredPermissions) {
-                    val dbm = state.currentSignal.dbm
-                    val interval = state.currentIntervalMs
-
-                    if (state.isSonarAudioEnabled && state.currentSignal.isSignalValid) {
-                        if (SignalIntervalMapper.shouldUseFlatTone(dbm)) {
-                            audioEngine.playFlat()
-                        } else {
-                            val pitch = if (dbm != null) {
-                                0.9f + (((dbm + 110).coerceIn(0, 45) / 45f) * 0.35f)
-                            } else {
-                                1.0f
-                            }
-                            audioEngine.playPing(ratePitch = pitch)
-                        }
-                    }
+                if (isTracking && state.isSonarAudioEnabled) {
+                    val ratePitch = SignalIntervalMapper.calculatePitchRate(state.currentSignal.dbm)
+                    audioEngine.playPing(ratePitch)
 
                     _uiState.update { it.copy(pulseTriggerEpoch = System.currentTimeMillis()) }
-
-                    delay(interval)
-                } else {
-                    delay(500L)
                 }
+
+                delay(interval)
             }
         }
     }
@@ -158,11 +177,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         sonarLoopJob = null
     }
 
+    fun runLatencyTest(targetHost: String = "8.8.8.8") {
+        if (_uiState.value.isLatencyTesting) return
+        _uiState.update { it.copy(isLatencyTesting = true) }
+        viewModelScope.launch {
+            val result = latencyTester.testLatency(host = targetHost)
+            _uiState.update { it.copy(latencyResult = result, isLatencyTesting = false) }
+        }
+    }
+
     fun toggleSonarAudio() {
         _uiState.update { current ->
-            val newState = !current.isSonarAudioEnabled
-            audioEngine.setMuted(!newState)
-            current.copy(isSonarAudioEnabled = newState)
+            val newAudioState = !current.isSonarAudioEnabled
+            audioEngine.setMuted(!newAudioState)
+            current.copy(isSonarAudioEnabled = newAudioState)
         }
     }
 
@@ -186,18 +214,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(peakSignal = null) }
     }
 
-    fun selectTab(tab: id.gustyx.signalsonar.ui.navigation.AppTab) {
+    fun selectTab(tab: AppTab) {
         _uiState.update { it.copy(selectedTab = tab) }
     }
 
     fun onAppForeground() {
         _uiState.update { it.copy(isAppForegrounded = true) }
         audioEngine.resumeAll()
-        if (_uiState.value.hasRequiredPermissions && sonarLoopJob?.isActive != true) {
-            startSonarLoop()
-        }
-        if (_uiState.value.hasRequiredPermissions && trafficCollectorJob?.isActive != true) {
-            startTrafficMonitoring()
+        if (_uiState.value.hasRequiredPermissions) {
+            refreshSimCardsAndIp()
+            if (sonarLoopJob?.isActive != true) startSonarLoop()
+            if (trafficCollectorJob?.isActive != true) startTrafficMonitoring()
         }
     }
 

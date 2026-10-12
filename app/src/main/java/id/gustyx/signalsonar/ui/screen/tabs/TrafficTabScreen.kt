@@ -143,6 +143,37 @@ fun TrafficTabScreen(
                     )
                 }
 
+                ConnectionInfoRow(
+                    label = "Status Roaming",
+                    value = if (uiState.currentSignal.isRoaming) "Roaming Aktif" else "Jaringan Asal (Home)"
+                )
+
+                if (uiState.currentSignal.countryIso.isNotBlank()) {
+                    ConnectionInfoRow(
+                        label = "Wilayah / Negara (ISO)",
+                        value = uiState.currentSignal.countryIso
+                    )
+                }
+
+                ConnectionInfoRow(
+                    label = "Carrier Aggregation (4G+)",
+                    value = if (uiState.currentSignal.isCarrierAggregationActive) "Aktif (LTE-A)" else "Single Carrier"
+                )
+
+                if (uiState.cellularIpv4 != null) {
+                    ConnectionInfoRow(
+                        label = "Alamat IP Seluler (IPv4)",
+                        value = uiState.cellularIpv4
+                    )
+                }
+
+                if (uiState.cellularIpv6 != null) {
+                    ConnectionInfoRow(
+                        label = "Alamat IP Seluler (IPv6)",
+                        value = uiState.cellularIpv6.take(24) + "..."
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(10.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 Spacer(modifier = Modifier.height(10.dp))

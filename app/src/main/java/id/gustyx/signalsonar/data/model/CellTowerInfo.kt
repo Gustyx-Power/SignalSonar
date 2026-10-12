@@ -76,6 +76,12 @@ data class CellTowerInfo(
     val estimatedMaxCoverageMeters: Int = 3000,// Maximum theoretical coverage radius for this band
     val coveragePercentage: Float = 0f,        // 0.0 to 1.0 representation of cell radius position
     val coverageZone: CoverageZone = CoverageZone.UNKNOWN,
+    val duplexMode: String = "FDD",            // FDD vs TDD
+    val bandwidthMhz: Float? = null,           // Channel bandwidth (e.g. 20.0 MHz)
+    val downlinkMhz: Double? = null,           // Downlink carrier frequency (MHz)
+    val uplinkMhz: Double? = null,             // Uplink carrier frequency (MHz)
+    val isCarrierAggregation: Boolean = false, // 4G+ LTE-A active
+    val nrMode: String? = null,                // 5G NSA, 5G SA, 5G Advanced
     val neighborCells: List<NeighborCell> = emptyList()
 ) {
     val formattedDistance: String

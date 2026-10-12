@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import id.gustyx.signalsonar.ui.components.PeakSignalCard
 import id.gustyx.signalsonar.ui.components.RadarVisualizer
+import id.gustyx.signalsonar.ui.components.SignalQualityChart
 import id.gustyx.signalsonar.ui.components.SignalStatsCard
 import id.gustyx.signalsonar.ui.components.SonarControlPanel
 import id.gustyx.signalsonar.ui.viewmodel.MainUiState
@@ -21,7 +22,7 @@ import id.gustyx.signalsonar.ui.viewmodel.MainViewModel
 
 /**
  * Tab 1: Primary Sonar Radar Screen.
- * Hosts the Hero Signal Visualizer, Peak Hold, Sonar Audio controls, and Operator info.
+ * Hosts Hero Signal Visualizer, Real-time 30-Sample Trend Chart, Peak Hold, Sonar Audio, and Operator stats.
  */
 @Composable
 fun SonarTabScreen(
@@ -46,18 +47,24 @@ fun SonarTabScreen(
             intervalMs = uiState.currentIntervalMs
         )
 
-        // 2. Peak Signal Hold Card
+        // 2. Real-Time Signal Quality Trend Chart (30 Rolling Measurements)
+        SignalQualityChart(
+            historyDbm = uiState.signalHistory,
+            currentDbm = uiState.currentSignal.dbm
+        )
+
+        // 3. Peak Signal Hold Card
         PeakSignalCard(
             peakSignal = uiState.peakSignal,
             onResetPeak = { viewModel.resetPeakSignal() }
         )
 
-        // 3. Operator & SIM Card
+        // 4. Operator & SIM Card
         SignalStatsCard(
             signalData = uiState.currentSignal
         )
 
-        // 4. Sonar Control Panel (Volume, Mute, Test Ping, Screen On)
+        // 5. Sonar Control Panel (Volume, Mute, Test Ping, Screen On)
         SonarControlPanel(
             isAudioEnabled = uiState.isSonarAudioEnabled,
             onToggleAudio = { viewModel.toggleSonarAudio() },

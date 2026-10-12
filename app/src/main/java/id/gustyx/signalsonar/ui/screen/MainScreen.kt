@@ -77,7 +77,10 @@ fun MainScreen(
                 trafficData = uiState.trafficData,
                 intervalMs = uiState.currentIntervalMs,
                 isAudioEnabled = uiState.isSonarAudioEnabled,
-                onToggleAudio = { viewModel.toggleSonarAudio() }
+                onToggleAudio = { viewModel.toggleSonarAudio() },
+                availableSims = uiState.availableSims,
+                selectedSubId = uiState.selectedSubId,
+                onSelectSim = { viewModel.switchSim(it) }
             )
         },
         bottomBar = {
@@ -117,7 +120,8 @@ fun MainScreen(
                             uiState = uiState
                         )
                         AppTab.DIAGNOSTICS -> DiagnosticsTabScreen(
-                            uiState = uiState
+                            uiState = uiState,
+                            viewModel = viewModel
                         )
                         AppTab.TRAFFIC -> TrafficTabScreen(
                             uiState = uiState

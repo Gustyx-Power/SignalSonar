@@ -29,6 +29,16 @@ data class SignalData(
     val earfcn: Int? = null,            // Frequency Channel Number
     val cellTowerInfo: CellTowerInfo = CellTowerInfo(),
 
+    // Advanced Global Carrier & Network Details
+    val isCarrierAggregationActive: Boolean = false, // 4G+ LTE-A
+    val nrMode: String? = null,                      // "5G NSA", "5G SA", "5G Advanced"
+    val duplexMode: String = "FDD",                  // "FDD" or "TDD"
+    val channelBandwidthMhz: Float? = null,          // e.g. 20.0 MHz
+    val downlinkFreqMhz: Double? = null,             // Exact DL frequency MHz
+    val uplinkFreqMhz: Double? = null,               // Exact UL frequency MHz
+    val isRoaming: Boolean = false,                  // True if connected via roaming
+    val countryIso: String = "",                     // e.g. "ID", "IN", "SA"
+
     val timestamp: Long = System.currentTimeMillis()
 ) {
     val cid: Long?

@@ -20,18 +20,19 @@ import android.telephony.TelephonyCallback
 import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
 import android.util.Log
-import androidx.core.content.ContextCompat
+import id.gustyx.signalsonar.data.model.CellTowerInfo
+import id.gustyx.signalsonar.data.model.CoverageZone
+import id.gustyx.signalsonar.data.model.NeighborCell
 import id.gustyx.signalsonar.data.model.NetworkType
 import id.gustyx.signalsonar.data.model.SignalData
+import id.gustyx.signalsonar.data.model.SimCardInfo
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
 /**
  * Monitors real-time cellular signal strength, network technology, RF engineering metrics,
- * and carrier metadata.
- * Uses TelephonyCallback on API 31+ (Android 12+) and PhoneStateListener fallback on API 29-30.
- * Focuses on the primary Default Data SIM in Dual SIM environments.
+ * global frequency bands, carrier aggregation (LTE-CA), 5G mode (NSA/SA), and Dual SIM slots.
  */
 class SignalMonitor(private val context: Context) {
 
@@ -40,13 +41,134 @@ class SignalMonitor(private val context: Context) {
     private val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
     private val subscriptionManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
 
+    data class BandDetails(
+        val bandName: String,
+        val duplexMode: String,
+        val downlinkMhz: Double?,
+        val uplinkMhz: Double?
+    )
+
+    fun getActiveSimCards(): List<SimCardInfo> {
+        val list = mutableListOf<SimCardInfo>()
+        try {
+            val subs = subscriptionManager?.activeSubscriptionInfoList ?: emptyList()
+            val defaultDataSubId = SubscriptionManager.getDefaultDataSubscriptionId()
+            subs.forEach { sub ->
+                list.add(
+                    SimCardInfo(
+                        subscriptionId = sub.subscriptionId,
+                        slotIndex = sub.simSlotIndex,
+                        displayName = sub.displayName?.toString().orEmpty(),
+                        carrierName = sub.carrierName?.toString().orEmpty(),
+                        isDefaultData = sub.subscriptionId == defaultDataSubId,
+                        countryIso = sub.countryIso?.uppercase().orEmpty()
+                    )
+                )
+            }
+        } catch (e: SecurityException) {
+            Log.w(tag, "Permission not granted to read subscription info", e)
+        }
+        return list
+    }
+
+    private fun parseEarfcnDetails(earfcn: Int): BandDetails {
+        return when (earfcn) {
+            in 0..599 -> {
+                val dl = 2110.0 + 0.1 * (earfcn - 0)
+                val ul = 1920.0 + 0.1 * (earfcn - 0)
+                BandDetails("B1 (2100 MHz)", "FDD", dl, ul)
+            }
+            in 600..1199 -> {
+                val dl = 1930.0 + 0.1 * (earfcn - 600)
+                val ul = 1850.0 + 0.1 * (earfcn - 600)
+                BandDetails("B2 (1900 MHz)", "FDD", dl, ul)
+            }
+            in 1200..1949 -> {
+                val dl = 1805.0 + 0.1 * (earfcn - 1200)
+                val ul = 1710.0 + 0.1 * (earfcn - 1200)
+                BandDetails("B3 (1800 MHz)", "FDD", dl, ul)
+            }
+            in 1950..2399 -> {
+                val dl = 2110.0 + 0.1 * (earfcn - 1950)
+                val ul = 1710.0 + 0.1 * (earfcn - 1950)
+                BandDetails("B4 (AWS 1700/2100)", "FDD", dl, ul)
+            }
+            in 2400..2649 -> {
+                val dl = 869.0 + 0.1 * (earfcn - 2400)
+                val ul = 824.0 + 0.1 * (earfcn - 2400)
+                BandDetails("B5 (850 MHz)", "FDD", dl, ul)
+            }
+            in 2750..3449 -> {
+                val dl = 2620.0 + 0.1 * (earfcn - 2750)
+                val ul = 2500.0 + 0.1 * (earfcn - 2750)
+                BandDetails("B7 (2600 MHz)", "FDD", dl, ul)
+            }
+            in 3450..3799 -> {
+                val dl = 925.0 + 0.1 * (earfcn - 3450)
+                val ul = 880.0 + 0.1 * (earfcn - 3450)
+                BandDetails("B8 (900 MHz)", "FDD", dl, ul)
+            }
+            in 5010..5179 -> {
+                val dl = 729.0 + 0.1 * (earfcn - 5010)
+                val ul = 699.0 + 0.1 * (earfcn - 5010)
+                BandDetails("B12 (700 MHz)", "FDD", dl, ul)
+            }
+            in 6150..6449 -> {
+                val dl = 791.0 + 0.1 * (earfcn - 6150)
+                val ul = 832.0 + 0.1 * (earfcn - 6150)
+                BandDetails("B20 (800 MHz)", "FDD", dl, ul)
+            }
+            in 9210..9659 -> {
+                val dl = 758.0 + 0.1 * (earfcn - 9210)
+                val ul = 703.0 + 0.1 * (earfcn - 9210)
+                BandDetails("B28 (700 MHz)", "FDD", dl, ul)
+            }
+            in 37750..38249 -> {
+                val f = 2570.0 + 0.1 * (earfcn - 37750)
+                BandDetails("B38 (TDD 2600 MHz)", "TDD", f, f)
+            }
+            in 38650..39649 -> {
+                val f = 2300.0 + 0.1 * (earfcn - 38650)
+                BandDetails("B40 (TDD 2300 MHz)", "TDD", f, f)
+            }
+            in 39650..41589 -> {
+                val f = 2496.0 + 0.1 * (earfcn - 39650)
+                BandDetails("B41 (TDD 2500 MHz)", "TDD", f, f)
+            }
+            in 66436..67335 -> {
+                val dl = 2110.0 + 0.1 * (earfcn - 66436)
+                val ul = 1710.0 + 0.1 * (earfcn - 66436)
+                BandDetails("B66 (AWS-3)", "FDD", dl, ul)
+            }
+            in 68586..68935 -> {
+                val dl = 617.0 + 0.1 * (earfcn - 68586)
+                val ul = 663.0 + 0.1 * (earfcn - 68586)
+                BandDetails("B71 (600 MHz)", "FDD", dl, ul)
+            }
+            else -> BandDetails(if (earfcn > 0) "EARFCN $earfcn" else "LTE Band Standar", "FDD", null, null)
+        }
+    }
+
+    private fun parseNrArfcnDetails(nrarfcn: Int): BandDetails {
+        return when (nrarfcn) {
+            in 422000..434000 -> BandDetails("n1 (2100 MHz)", "FDD", 2110.0 + 0.005 * (nrarfcn - 422000), null)
+            in 361000..376000 -> BandDetails("n3 (1800 MHz)", "FDD", 1805.0 + 0.005 * (nrarfcn - 361000), null)
+            in 151600..160600 -> BandDetails("n28 (700 MHz)", "FDD", 758.0 + 0.005 * (nrarfcn - 151600), null)
+            in 460000..480000 -> BandDetails("n40 (TDD 2300 MHz)", "TDD", 2300.0 + 0.005 * (nrarfcn - 460000), null)
+            in 499200..537999 -> BandDetails("n41 (TDD 2500 MHz)", "TDD", 2496.0 + 0.015 * (nrarfcn - 499200), null)
+            in 620000..680000 -> BandDetails("n78 (3500 MHz)", "TDD", 3300.0 + 0.015 * (nrarfcn - 620000), null)
+            in 620000..653333 -> BandDetails("n77 (3700 MHz)", "TDD", 3300.0 + 0.015 * (nrarfcn - 620000), null)
+            else -> BandDetails("NR ARFCN $nrarfcn", "TDD", null, null)
+        }
+    }
+
     @SuppressLint("MissingPermission")
-    fun observeSignal(): Flow<SignalData> = callbackFlow {
+    fun observeSignal(targetSubId: Int? = null): Flow<SignalData> = callbackFlow {
         var currentOverrideType = 0
 
         fun getTargetedTelephonyManager(): Pair<TelephonyManager, SubscriptionInfo?> {
             var subInfo: SubscriptionInfo? = null
-            var subId = SubscriptionManager.getDefaultDataSubscriptionId()
+            var subId = targetSubId ?: SubscriptionManager.getDefaultDataSubscriptionId()
 
             if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
                 try {
@@ -75,23 +197,6 @@ class SignalMonitor(private val context: Context) {
             return Pair(targetedManager, subInfo)
         }
 
-        fun mapEarfcnToBand(earfcn: Int): String {
-            return when (earfcn) {
-                in 0..599 -> "B1 (2100 MHz)"
-                in 600..1199 -> "B2 (1900 MHz)"
-                in 1200..1949 -> "B3 (1800 MHz)"
-                in 1950..2399 -> "B4 (AWS 1700/2100)"
-                in 2400..2649 -> "B5 (850 MHz)"
-                in 2750..3449 -> "B7 (2600 MHz)"
-                in 3450..3799 -> "B8 (900 MHz)"
-                in 6150..6449 -> "B20 (800 MHz)"
-                in 9210..9659 -> "B28 (700 MHz)"
-                in 38650..39649 -> "B40 (TDD 2300 MHz)"
-                in 39650..41589 -> "B41 (TDD 2500 MHz)"
-                else -> if (earfcn > 0) "EARFCN $earfcn" else "LTE Band Standar"
-            }
-        }
-
         fun extractSignalData(
             signalStrength: SignalStrength?,
             overrideType: Int = currentOverrideType
@@ -105,6 +210,24 @@ class SignalMonitor(private val context: Context) {
             }
 
             val resolvedNetworkType = NetworkType.fromTelephonyType(rawNetworkType, overrideType)
+
+            val isCarrierAggregation = overrideType == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_LTE_CA
+
+            val nrMode = when (overrideType) {
+                TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA -> "5G NSA (Non-Standalone)"
+                TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED -> "5G Advanced (High-Speed)"
+                else -> if (rawNetworkType == TelephonyManager.NETWORK_TYPE_NR) "5G SA (Standalone)" else null
+            }
+
+            val isRoaming = try {
+                activeManager.isNetworkRoaming
+            } catch (_: Exception) {
+                false
+            }
+
+            val countryIso = subInfo?.countryIso?.uppercase()
+                ?: activeManager.networkCountryIso?.uppercase()
+                ?: ""
 
             val operator = subInfo?.carrierName?.toString()
                 ?.takeIf { it.isNotBlank() }
@@ -121,7 +244,11 @@ class SignalMonitor(private val context: Context) {
                     operatorName = operator,
                     simSlotIndex = simSlot,
                     subscriptionId = subId,
-                    isConnected = false
+                    isConnected = false,
+                    isCarrierAggregationActive = isCarrierAggregation,
+                    nrMode = nrMode,
+                    isRoaming = isRoaming,
+                    countryIso = countryIso
                 )
             }
 
@@ -178,7 +305,11 @@ class SignalMonitor(private val context: Context) {
             var mnc: String? = null
             var enodebId: Int? = null
             var sectorId: Int? = null
-            val neighborCells = mutableListOf<id.gustyx.signalsonar.data.model.NeighborCell>()
+            var duplexMode = "FDD"
+            var channelBandwidthMhz: Float? = null
+            var downlinkFreqMhz: Double? = null
+            var uplinkFreqMhz: Double? = null
+            val neighborCells = mutableListOf<NeighborCell>()
 
             try {
                 val cellInfoList = activeManager.allCellInfo
@@ -198,7 +329,14 @@ class SignalMonitor(private val context: Context) {
                     }
                     if (identity.earfcn != CellInfo.UNAVAILABLE) {
                         earfcn = identity.earfcn
-                        band = mapEarfcnToBand(identity.earfcn)
+                        val bandInfo = parseEarfcnDetails(identity.earfcn)
+                        band = bandInfo.bandName
+                        duplexMode = bandInfo.duplexMode
+                        downlinkFreqMhz = bandInfo.downlinkMhz
+                        uplinkFreqMhz = bandInfo.uplinkMhz
+                    }
+                    if (identity.bandwidth != CellInfo.UNAVAILABLE && identity.bandwidth > 0) {
+                        channelBandwidthMhz = identity.bandwidth / 1000f
                     }
                     mcc = identity.mccString
                     mnc = identity.mncString
@@ -220,7 +358,10 @@ class SignalMonitor(private val context: Context) {
                             }
                             if (it.nrarfcn != CellInfo.UNAVAILABLE) {
                                 earfcn = it.nrarfcn
-                                band = "NR ARFCN ${it.nrarfcn}"
+                                val bandInfo = parseNrArfcnDetails(it.nrarfcn)
+                                band = bandInfo.bandName
+                                duplexMode = bandInfo.duplexMode
+                                downlinkFreqMhz = bandInfo.downlinkMhz
                             }
                             mcc = it.mccString
                             mnc = it.mncString
@@ -236,7 +377,7 @@ class SignalMonitor(private val context: Context) {
                             val d = cell.cellSignalStrength.dbm.takeIf { it in -140..-40 }
                             if (p != null || d != null) {
                                 neighborCells.add(
-                                    id.gustyx.signalsonar.data.model.NeighborCell(
+                                    NeighborCell(
                                         pci = p,
                                         dbm = d,
                                         networkType = "LTE",
@@ -252,7 +393,7 @@ class SignalMonitor(private val context: Context) {
                                 val d = cell.cellSignalStrength.dbm.takeIf { it in -140..-40 }
                                 if (p != null || d != null) {
                                     neighborCells.add(
-                                        id.gustyx.signalsonar.data.model.NeighborCell(
+                                        NeighborCell(
                                             pci = p,
                                             dbm = d,
                                             networkType = "5G NR",
@@ -267,7 +408,7 @@ class SignalMonitor(private val context: Context) {
                             val d = cell.cellSignalStrength.dbm.takeIf { it in -140..-40 }
                             if (p != null || d != null) {
                                 neighborCells.add(
-                                    id.gustyx.signalsonar.data.model.NeighborCell(
+                                    NeighborCell(
                                         pci = p,
                                         dbm = d,
                                         networkType = "3G",
@@ -281,7 +422,7 @@ class SignalMonitor(private val context: Context) {
                             val d = cell.cellSignalStrength.dbm.takeIf { it in -140..-40 }
                             if (p != null || d != null) {
                                 neighborCells.add(
-                                    id.gustyx.signalsonar.data.model.NeighborCell(
+                                    NeighborCell(
                                         pci = p,
                                         dbm = d,
                                         networkType = "2G",
@@ -323,14 +464,14 @@ class SignalMonitor(private val context: Context) {
             }
 
             val coverageZone = when {
-                distanceMeters == null -> id.gustyx.signalsonar.data.model.CoverageZone.UNKNOWN
-                coverageFraction < 0.25f -> id.gustyx.signalsonar.data.model.CoverageZone.NEAR_TOWER
-                coverageFraction <= 0.70f -> id.gustyx.signalsonar.data.model.CoverageZone.MID_CELL
-                coverageFraction <= 0.95f -> id.gustyx.signalsonar.data.model.CoverageZone.CELL_EDGE
-                else -> id.gustyx.signalsonar.data.model.CoverageZone.OUT_OF_RANGE
+                distanceMeters == null -> CoverageZone.UNKNOWN
+                coverageFraction < 0.25f -> CoverageZone.NEAR_TOWER
+                coverageFraction <= 0.70f -> CoverageZone.MID_CELL
+                coverageFraction <= 0.95f -> CoverageZone.CELL_EDGE
+                else -> CoverageZone.OUT_OF_RANGE
             }
 
-            val towerInfo = id.gustyx.signalsonar.data.model.CellTowerInfo(
+            val towerInfo = CellTowerInfo(
                 enodebId = enodebId,
                 sectorId = sectorId,
                 cellId = ci,
@@ -346,6 +487,12 @@ class SignalMonitor(private val context: Context) {
                 estimatedMaxCoverageMeters = maxCoverageMeters,
                 coveragePercentage = coverageFraction,
                 coverageZone = coverageZone,
+                duplexMode = duplexMode,
+                bandwidthMhz = channelBandwidthMhz,
+                downlinkMhz = downlinkFreqMhz,
+                uplinkMhz = uplinkFreqMhz,
+                isCarrierAggregation = isCarrierAggregation,
+                nrMode = nrMode,
                 neighborCells = neighborCells
             )
 
@@ -370,6 +517,14 @@ class SignalMonitor(private val context: Context) {
                 band = band,
                 earfcn = earfcn,
                 cellTowerInfo = towerInfo,
+                isCarrierAggregationActive = isCarrierAggregation,
+                nrMode = nrMode,
+                duplexMode = duplexMode,
+                channelBandwidthMhz = channelBandwidthMhz,
+                downlinkFreqMhz = downlinkFreqMhz,
+                uplinkFreqMhz = uplinkFreqMhz,
+                isRoaming = isRoaming,
+                countryIso = countryIso,
                 timestamp = System.currentTimeMillis()
             )
         }
@@ -397,84 +552,57 @@ class SignalMonitor(private val context: Context) {
                     currentOverrideType = telephonyDisplayInfo.overrideNetworkType
                     try {
                         val (mgr, _) = getTargetedTelephonyManager()
-                        trySend(extractSignalData(mgr.signalStrength, currentOverrideType))
+                        val currentSignal = mgr.signalStrength
+                        trySend(extractSignalData(currentSignal, currentOverrideType))
                     } catch (e: Exception) {
-                        Log.w(tag, "Error updating display info", e)
+                        Log.w(tag, "Error extracting signal after display info change", e)
                     }
                 }
 
                 override fun onServiceStateChanged(serviceState: ServiceState) {
                     try {
                         val (mgr, _) = getTargetedTelephonyManager()
-                        trySend(extractSignalData(mgr.signalStrength))
+                        val currentSignal = mgr.signalStrength
+                        trySend(extractSignalData(currentSignal, currentOverrideType))
                     } catch (e: Exception) {
-                        Log.w(tag, "Error updating service state", e)
+                        Log.w(tag, "Error extracting signal after service state change", e)
                     }
                 }
             }
 
-            try {
-                initialManager.registerTelephonyCallback(ContextCompat.getMainExecutor(context), callback)
-            } catch (e: Exception) {
-                Log.e(tag, "Error registering TelephonyCallback", e)
-            }
-
+            initialManager.registerTelephonyCallback(context.mainExecutor, callback)
             awaitClose {
-                try {
-                    initialManager.unregisterTelephonyCallback(callback)
-                } catch (e: Exception) {
-                    Log.e(tag, "Error unregistering TelephonyCallback", e)
-                }
+                initialManager.unregisterTelephonyCallback(callback)
             }
         } else {
+            @Suppress("DEPRECATION")
             val listener = object : PhoneStateListener() {
                 @Deprecated("Deprecated in Java")
-                override fun onSignalStrengthsChanged(signalStrength: SignalStrength?) {
+                override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
                     trySend(extractSignalData(signalStrength))
                 }
 
                 @Deprecated("Deprecated in Java")
-                override fun onServiceStateChanged(serviceState: ServiceState?) {
+                override fun onServiceStateChanged(serviceState: ServiceState) {
                     try {
                         val (mgr, _) = getTargetedTelephonyManager()
-                        trySend(extractSignalData(mgr.signalStrength))
+                        val currentSignal = mgr.signalStrength
+                        trySend(extractSignalData(currentSignal, currentOverrideType))
                     } catch (e: Exception) {
-                        Log.w(tag, "Error updating service state fallback", e)
-                    }
-                }
-
-                override fun onDisplayInfoChanged(telephonyDisplayInfo: TelephonyDisplayInfo) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        currentOverrideType = telephonyDisplayInfo.overrideNetworkType
-                        try {
-                            val (mgr, _) = getTargetedTelephonyManager()
-                            trySend(extractSignalData(mgr.signalStrength, currentOverrideType))
-                        } catch (e: Exception) {
-                            Log.w(tag, "Error on display info fallback", e)
-                        }
+                        Log.w(tag, "Error in legacy onServiceStateChanged", e)
                     }
                 }
             }
 
-            var events = PhoneStateListener.LISTEN_SIGNAL_STRENGTHS or PhoneStateListener.LISTEN_SERVICE_STATE
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                events = events or PhoneStateListener.LISTEN_DISPLAY_INFO_CHANGED
-            }
-
-            try {
-                @Suppress("DEPRECATION")
-                initialManager.listen(listener, events)
-            } catch (e: Exception) {
-                Log.e(tag, "Error registering PhoneStateListener", e)
-            }
+            @Suppress("DEPRECATION")
+            initialManager.listen(
+                listener,
+                PhoneStateListener.LISTEN_SIGNAL_STRENGTHS or PhoneStateListener.LISTEN_SERVICE_STATE
+            )
 
             awaitClose {
-                try {
-                    @Suppress("DEPRECATION")
-                    initialManager.listen(listener, PhoneStateListener.LISTEN_NONE)
-                } catch (e: Exception) {
-                    Log.e(tag, "Error unregistering PhoneStateListener", e)
-                }
+                @Suppress("DEPRECATION")
+                initialManager.listen(listener, PhoneStateListener.LISTEN_NONE)
             }
         }
     }

@@ -20,7 +20,14 @@ data class MainUiState(
     val currentIntervalMs: Long = 1500L,
     val pulseTriggerEpoch: Long = 0L,
     val isAppForegrounded: Boolean = true,
-    val selectedTab: id.gustyx.signalsonar.ui.navigation.AppTab = id.gustyx.signalsonar.ui.navigation.AppTab.SONAR
+    val selectedTab: id.gustyx.signalsonar.ui.navigation.AppTab = id.gustyx.signalsonar.ui.navigation.AppTab.SONAR,
+    val availableSims: List<id.gustyx.signalsonar.data.model.SimCardInfo> = emptyList(),
+    val selectedSubId: Int? = null,
+    val signalHistory: List<Int> = emptyList(),
+    val latencyResult: id.gustyx.signalsonar.data.model.LatencyResult = id.gustyx.signalsonar.data.model.LatencyResult(),
+    val isLatencyTesting: Boolean = false,
+    val cellularIpv4: String? = null,
+    val cellularIpv6: String? = null
 ) {
     val cellTowerInfo: id.gustyx.signalsonar.data.model.CellTowerInfo
         get() = currentSignal.cellTowerInfo

@@ -52,4 +52,17 @@ object SignalIntervalMapper {
     fun shouldUseFlatTone(dbm: Int?): Boolean {
         return dbm == null || dbm <= -115
     }
+
+    /**
+     * Calculates audio pitch rate for SoundPool playback.
+     */
+    fun calculatePitchRate(dbm: Int?): Float {
+        if (dbm == null || dbm < -140 || dbm > -40) return 1.0f
+        return when {
+            dbm >= -75 -> 1.35f
+            dbm in -90..-76 -> 1.15f
+            dbm in -105..-91 -> 1.0f
+            else -> 0.85f
+        }
+    }
 }
