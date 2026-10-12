@@ -46,11 +46,42 @@ object SignalIntervalMapper {
     }
 
     /**
+     * Determines interval delay in milliseconds for the sonar beep timer
+     * based on the composite RF quality score (0..100%).
+     * Falls back to raw dBm calculation if compositeScore is 0.
+     */
+    fun calculateIntervalMsFromScore(compositeScore: Int, fallbackDbm: Int? = null): Long {
+        if (compositeScore > 0) {
+            return when {
+                compositeScore >= 80 -> {
+                    val fraction = (compositeScore - 80) / 20f
+                    (200L - (fraction * 80L)).toLong().coerceIn(MIN_INTERVAL_MS, 200L)
+                }
+                compositeScore in 55..79 -> {
+                    val fraction = (compositeScore - 55) / 24f
+                    (550L - (fraction * 250L)).toLong().coerceIn(300L, 550L)
+                }
+                compositeScore in 30..54 -> {
+                    val fraction = (compositeScore - 30) / 24f
+                    (1050L - (fraction * 350L)).toLong().coerceIn(700L, 1050L)
+                }
+                else -> MAX_INTERVAL_MS
+            }
+        }
+        return calculateIntervalMs(fallbackDbm)
+    }
+
+    /**
      * Identifies whether to trigger an error/flat warning tone instead of a crisp ping
      * when the cellular signal is extremely degraded or disconnected.
      */
     fun shouldUseFlatTone(dbm: Int?): Boolean {
         return dbm == null || dbm <= -115
+    }
+
+    fun shouldUseFlatToneFromScore(compositeScore: Int, fallbackDbm: Int? = null): Boolean {
+        if (compositeScore > 0) return compositeScore < 25
+        return shouldUseFlatTone(fallbackDbm)
     }
 
     /**
@@ -64,5 +95,17 @@ object SignalIntervalMapper {
             dbm in -105..-91 -> 1.0f
             else -> 0.85f
         }
+    }
+
+    fun calculatePitchRateFromScore(compositeScore: Int, fallbackDbm: Int? = null): Float {
+        if (compositeScore > 0) {
+            return when {
+                compositeScore >= 80 -> 1.35f
+                compositeScore in 55..79 -> 1.15f
+                compositeScore in 30..54 -> 1.0f
+                else -> 0.85f
+            }
+        }
+        return calculatePitchRate(fallbackDbm)
     }
 }

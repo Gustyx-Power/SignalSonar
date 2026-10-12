@@ -43,8 +43,12 @@ data class SignalData(
 ) {
     val cid: Long?
         get() = ci
+
+    val compositeScore: Int
+        get() = SignalSnapshot.calculateCompositeScore(dbm, rsrp, rsrq, sinr)
+
     val quality: SignalQuality
-        get() = SignalQuality.fromDbm(dbm)
+        get() = if (compositeScore > 0) SignalQuality.fromCompositeScore(compositeScore) else SignalQuality.fromDbm(dbm)
 
     val formattedDbm: String
         get() = if (dbm != null && dbm in -140..-40) "$dbm dBm" else "-- dBm"

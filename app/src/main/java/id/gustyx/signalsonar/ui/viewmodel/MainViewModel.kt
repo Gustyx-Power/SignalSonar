@@ -112,7 +112,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun handleNewSignalData(signal: SignalData) {
-        val interval = SignalIntervalMapper.calculateIntervalMs(signal.dbm)
+        val interval = SignalIntervalMapper.calculateIntervalMsFromScore(
+            compositeScore = signal.compositeScore,
+            fallbackDbm = signal.dbm
+        )
         val obstacle = ObstacleAnalysis.analyze(
             dbm = signal.dbm,
             rsrq = signal.rsrq,
@@ -136,8 +139,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             // Append to rolling signal history (last 30 measurements)
-            val updatedHistory = if (signal.dbm != null && signal.dbm in -140..-40) {
-                (current.signalHistory + signal.dbm).takeLast(30)
+            val updatedHistory = if (signal.isSignalValid) {
+                (current.signalHistory + id.gustyx.signalsonar.data.model.SignalSnapshot.fromSignalData(signal)).takeLast(30)
             } else {
                 current.signalHistory
             }
@@ -161,8 +164,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val interval = state.currentIntervalMs
 
                 if (isTracking && state.isSonarAudioEnabled) {
-                    val ratePitch = SignalIntervalMapper.calculatePitchRate(state.currentSignal.dbm)
-                    audioEngine.playPing(ratePitch)
+                    val useFlat = SignalIntervalMapper.shouldUseFlatToneFromScore(
+                        compositeScore = state.currentSignal.compositeScore,
+                        fallbackDbm = state.currentSignal.dbm
+                    )
+                    if (useFlat) {
+                        audioEngine.playFlat()
+                    } else {
+                        val ratePitch = SignalIntervalMapper.calculatePitchRateFromScore(
+                            compositeScore = state.currentSignal.compositeScore,
+                            fallbackDbm = state.currentSignal.dbm
+                        )
+                        audioEngine.playPing(ratePitch)
+                    }
 
                     _uiState.update { it.copy(pulseTriggerEpoch = System.currentTimeMillis()) }
                 }

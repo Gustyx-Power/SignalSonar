@@ -55,5 +55,15 @@ enum class SignalQuality(
                 else -> CRITICAL
             }
         }
+
+        fun fromCompositeScore(score: Int): SignalQuality {
+            return when {
+                score >= 80 -> EXCELLENT
+                score in 55..79 -> GOOD
+                score in 30..54 -> POOR
+                score > 0 -> CRITICAL
+                else -> UNKNOWN
+            }
+        }
     }
 }

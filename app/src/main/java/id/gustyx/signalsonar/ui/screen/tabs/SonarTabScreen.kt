@@ -49,8 +49,8 @@ fun SonarTabScreen(
 
         // 2. Real-Time Signal Quality Trend Chart (30 Rolling Measurements)
         SignalQualityChart(
-            historyDbm = uiState.signalHistory,
-            currentDbm = uiState.currentSignal.dbm
+            history = uiState.signalHistory,
+            currentSignal = uiState.currentSignal
         )
 
         // 3. Peak Signal Hold Card

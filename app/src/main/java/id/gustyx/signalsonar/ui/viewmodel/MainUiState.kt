@@ -23,7 +23,7 @@ data class MainUiState(
     val selectedTab: id.gustyx.signalsonar.ui.navigation.AppTab = id.gustyx.signalsonar.ui.navigation.AppTab.SONAR,
     val availableSims: List<id.gustyx.signalsonar.data.model.SimCardInfo> = emptyList(),
     val selectedSubId: Int? = null,
-    val signalHistory: List<Int> = emptyList(),
+    val signalHistory: List<id.gustyx.signalsonar.data.model.SignalSnapshot> = emptyList(),
     val latencyResult: id.gustyx.signalsonar.data.model.LatencyResult = id.gustyx.signalsonar.data.model.LatencyResult(),
     val isLatencyTesting: Boolean = false,
     val cellularIpv4: String? = null,
