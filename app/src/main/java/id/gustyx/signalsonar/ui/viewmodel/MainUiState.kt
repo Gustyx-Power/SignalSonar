@@ -19,8 +19,12 @@ data class MainUiState(
     val hasRequiredPermissions: Boolean = false,
     val currentIntervalMs: Long = 1500L,
     val pulseTriggerEpoch: Long = 0L,
-    val isAppForegrounded: Boolean = true
+    val isAppForegrounded: Boolean = true,
+    val selectedTab: id.gustyx.signalsonar.ui.navigation.AppTab = id.gustyx.signalsonar.ui.navigation.AppTab.SONAR
 ) {
+    val cellTowerInfo: id.gustyx.signalsonar.data.model.CellTowerInfo
+        get() = currentSignal.cellTowerInfo
+
     val isActivelyTracking: Boolean
         get() = hasRequiredPermissions && currentSignal.isSignalValid
 }

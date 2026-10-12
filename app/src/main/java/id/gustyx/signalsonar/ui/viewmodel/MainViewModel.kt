@@ -186,6 +186,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(peakSignal = null) }
     }
 
+    fun selectTab(tab: id.gustyx.signalsonar.ui.navigation.AppTab) {
+        _uiState.update { it.copy(selectedTab = tab) }
+    }
+
     fun onAppForeground() {
         _uiState.update { it.copy(isAppForegrounded = true) }
         audioEngine.resumeAll()

@@ -174,6 +174,11 @@ class SignalMonitor(private val context: Context) {
             var ci: Long? = null
             var band: String? = null
             var earfcn: Int? = null
+            var mcc: String? = null
+            var mnc: String? = null
+            var enodebId: Int? = null
+            var sectorId: Int? = null
+            val neighborCells = mutableListOf<id.gustyx.signalsonar.data.model.NeighborCell>()
 
             try {
                 val cellInfoList = activeManager.allCellInfo
@@ -183,11 +188,20 @@ class SignalMonitor(private val context: Context) {
                     val identity = registeredCell.cellIdentity
                     if (identity.pci != CellInfo.UNAVAILABLE) pci = identity.pci
                     if (identity.tac != CellInfo.UNAVAILABLE) tac = identity.tac
-                    if (identity.ci != CellInfo.UNAVAILABLE) ci = identity.ci.toLong()
+                    if (identity.ci != CellInfo.UNAVAILABLE) {
+                        val rawCi = identity.ci.toLong()
+                        ci = rawCi
+                        if (rawCi > 0) {
+                            enodebId = (rawCi shr 8).toInt()
+                            sectorId = (rawCi and 0xFF).toInt()
+                        }
+                    }
                     if (identity.earfcn != CellInfo.UNAVAILABLE) {
                         earfcn = identity.earfcn
                         band = mapEarfcnToBand(identity.earfcn)
                     }
+                    mcc = identity.mccString
+                    mnc = identity.mncString
                     if (bestTimingAdvance == null && registeredCell.cellSignalStrength.timingAdvance != CellInfo.UNAVAILABLE) {
                         bestTimingAdvance = registeredCell.cellSignalStrength.timingAdvance
                     }
@@ -197,19 +211,143 @@ class SignalMonitor(private val context: Context) {
                         identity?.let {
                             if (it.pci != CellInfo.UNAVAILABLE) pci = it.pci
                             if (it.tac != CellInfo.UNAVAILABLE) tac = it.tac
-                            if (it.nci != CellInfo.UNAVAILABLE.toLong()) ci = it.nci
+                            if (it.nci != CellInfo.UNAVAILABLE.toLong()) {
+                                ci = it.nci
+                                if (it.nci > 0) {
+                                    enodebId = (it.nci shr 14).toInt()
+                                    sectorId = (it.nci and 0x3FFF).toInt()
+                                }
+                            }
                             if (it.nrarfcn != CellInfo.UNAVAILABLE) {
                                 earfcn = it.nrarfcn
                                 band = "NR ARFCN ${it.nrarfcn}"
                             }
+                            mcc = it.mccString
+                            mnc = it.mncString
                         }
+                    }
+                }
+
+                // Parse Neighbor Cells
+                cellInfoList?.filter { !it.isRegistered }?.forEach { cell ->
+                    when (cell) {
+                        is CellInfoLte -> {
+                            val p = cell.cellIdentity.pci.takeIf { it != CellInfo.UNAVAILABLE }
+                            val d = cell.cellSignalStrength.dbm.takeIf { it in -140..-40 }
+                            if (p != null || d != null) {
+                                neighborCells.add(
+                                    id.gustyx.signalsonar.data.model.NeighborCell(
+                                        pci = p,
+                                        dbm = d,
+                                        networkType = "LTE",
+                                        isRegistered = false
+                                    )
+                                )
+                            }
+                        }
+                        is CellInfoNr -> {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                val nrIdent = cell.cellIdentity as? android.telephony.CellIdentityNr
+                                val p = nrIdent?.pci?.takeIf { it != CellInfo.UNAVAILABLE }
+                                val d = cell.cellSignalStrength.dbm.takeIf { it in -140..-40 }
+                                if (p != null || d != null) {
+                                    neighborCells.add(
+                                        id.gustyx.signalsonar.data.model.NeighborCell(
+                                            pci = p,
+                                            dbm = d,
+                                            networkType = "5G NR",
+                                            isRegistered = false
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                        is CellInfoWcdma -> {
+                            val p = cell.cellIdentity.psc.takeIf { it != CellInfo.UNAVAILABLE }
+                            val d = cell.cellSignalStrength.dbm.takeIf { it in -140..-40 }
+                            if (p != null || d != null) {
+                                neighborCells.add(
+                                    id.gustyx.signalsonar.data.model.NeighborCell(
+                                        pci = p,
+                                        dbm = d,
+                                        networkType = "3G",
+                                        isRegistered = false
+                                    )
+                                )
+                            }
+                        }
+                        is CellInfoGsm -> {
+                            val p = cell.cellIdentity.cid.takeIf { it != CellInfo.UNAVAILABLE }
+                            val d = cell.cellSignalStrength.dbm.takeIf { it in -140..-40 }
+                            if (p != null || d != null) {
+                                neighborCells.add(
+                                    id.gustyx.signalsonar.data.model.NeighborCell(
+                                        pci = p,
+                                        dbm = d,
+                                        networkType = "2G",
+                                        isRegistered = false
+                                    )
+                                )
+                            }
+                        }
+                        else -> {}
                     }
                 }
             } catch (e: Exception) {
                 Log.w(tag, "Unable to query allCellInfo", e)
             }
 
-            val distanceMeters = bestTimingAdvance?.let { if (it in 0..1282) it * 78 else null }
+            // Calculate Distance and BTS Coverage Range
+            val isPreciseDistance = bestTimingAdvance != null && bestTimingAdvance in 0..1282
+            val distanceMeters = when {
+                isPreciseDistance -> bestTimingAdvance!! * 78
+                bestDbm != null && bestDbm in -140..-40 -> {
+                    val pathLoss = 43 - bestDbm
+                    Math.pow(10.0, (pathLoss - 40.0) / 32.0).toInt().coerceIn(100, 5000)
+                }
+                else -> null
+            }
+
+            val maxCoverageMeters = when {
+                band?.contains("B28") == true || band?.contains("B8") == true || band?.contains("700") == true || band?.contains("900") == true -> 8000
+                band?.contains("B3") == true || band?.contains("B1") == true || band?.contains("1800") == true || band?.contains("2100") == true -> 3500
+                band?.contains("B40") == true || band?.contains("B7") == true || band?.contains("2300") == true || band?.contains("2500") == true -> 2000
+                band?.contains("NR") == true || band?.contains("5G") == true -> 1500
+                else -> 3000
+            }
+
+            val coverageFraction = if (distanceMeters != null) {
+                (distanceMeters.toFloat() / maxCoverageMeters.toFloat()).coerceIn(0.04f, 1.0f)
+            } else {
+                0f
+            }
+
+            val coverageZone = when {
+                distanceMeters == null -> id.gustyx.signalsonar.data.model.CoverageZone.UNKNOWN
+                coverageFraction < 0.25f -> id.gustyx.signalsonar.data.model.CoverageZone.NEAR_TOWER
+                coverageFraction <= 0.70f -> id.gustyx.signalsonar.data.model.CoverageZone.MID_CELL
+                coverageFraction <= 0.95f -> id.gustyx.signalsonar.data.model.CoverageZone.CELL_EDGE
+                else -> id.gustyx.signalsonar.data.model.CoverageZone.OUT_OF_RANGE
+            }
+
+            val towerInfo = id.gustyx.signalsonar.data.model.CellTowerInfo(
+                enodebId = enodebId,
+                sectorId = sectorId,
+                cellId = ci,
+                pci = pci,
+                tac = tac,
+                band = band,
+                earfcn = earfcn,
+                mcc = mcc,
+                mnc = mnc,
+                timingAdvance = bestTimingAdvance,
+                distanceMeters = distanceMeters,
+                isDistancePrecise = isPreciseDistance,
+                estimatedMaxCoverageMeters = maxCoverageMeters,
+                coveragePercentage = coverageFraction,
+                coverageZone = coverageZone,
+                neighborCells = neighborCells
+            )
 
             return SignalData(
                 dbm = bestDbm,
@@ -231,6 +369,7 @@ class SignalMonitor(private val context: Context) {
                 ci = ci,
                 band = band,
                 earfcn = earfcn,
+                cellTowerInfo = towerInfo,
                 timestamp = System.currentTimeMillis()
             )
         }

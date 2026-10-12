@@ -27,6 +27,7 @@ data class SignalData(
     val ci: Long? = null,               // Cell Identity (CID/eNB)
     val band: String? = null,           // E.g., "B3 (1800 MHz)", "B1 (2100 MHz)"
     val earfcn: Int? = null,            // Frequency Channel Number
+    val cellTowerInfo: CellTowerInfo = CellTowerInfo(),
 
     val timestamp: Long = System.currentTimeMillis()
 ) {
